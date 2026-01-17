@@ -5,6 +5,9 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/select.h>
+#include "esp_netif_ip_addr.h" // ip4addr_ntoa
+#include "esp_netif_types.h"
+#include "esp_netif.h"
 
 namespace net
 {
@@ -21,6 +24,7 @@ namespace net
         int Write(const void *buffer, int bufferLen = -1);
         int Read(const void *buffer, int bufferLen);
         void Close();
+        bool IsClosed();
     };
 
     class Listener

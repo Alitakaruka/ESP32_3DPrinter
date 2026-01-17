@@ -10,6 +10,7 @@
 #include "nvs_flash.h"
 #include "esp_log.h"
 
+
 extern const char html[];
 extern const char htmlSucses[];
 extern const char htmlError[];

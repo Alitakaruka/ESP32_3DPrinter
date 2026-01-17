@@ -1,0 +1,16 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 0
+
+BreakBeforeBraces: Attach
+
+AllowShortIfStatementsOnASingleLine: true
+AllowShortLoopsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: All
+AllowShortBlocksOnASingleLine: Always
+
+SpaceBeforeParens: Never
+PointerAlignment: Left
+
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
