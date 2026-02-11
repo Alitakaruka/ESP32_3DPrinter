@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "project_name",
-    "project_version":    "1",
+    "project_version":    "dda2679-dirty",
     "project_path":       "C:/Users/Huesos/Desktop/CNC_NEw",
     "idf_path":           "C:/Users/Huesos/esp/v5.5.1/esp-idf",
     "build_dir":          "C:/Users/Huesos/Desktop/CNC_NEw/build",
