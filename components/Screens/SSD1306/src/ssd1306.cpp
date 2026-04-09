@@ -32,7 +32,7 @@ esp_err_t ssd1306::Init(gpio_num_t SCL, gpio_num_t SDA, uint16_t deviceAdres) {
     i2c_master_bus_handle_t handle;
     esp_err_t               err = i2c_new_master_bus(&config, &handle);
 
-    if(err != NULL) {
+    if(err != ESP_OK) {
         return err;
     }
 
@@ -49,7 +49,7 @@ esp_err_t ssd1306::Init(gpio_num_t SCL, gpio_num_t SDA, uint16_t deviceAdres) {
     LCD_display.dev_addr_length = I2C_ADDR_BIT_LEN_7;
 
     err = i2c_master_bus_add_device(handle, &LCD_display, &(this->device));
-    if(err != NULL) {
+    if(err != ESP_OK) {
         return err;
     }
     vTaskDelay(pdMS_TO_TICKS(100));

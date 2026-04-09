@@ -84,13 +84,15 @@ void Wifi_Auth::start_webserver(httpd_handle_t server)
         httpd_uri_t root = {
             .uri = "/",
             .method = HTTP_GET,
-            .handler = root_get_handler};
+            .handler = root_get_handler,
+            .user_ctx = nullptr};
         httpd_register_uri_handler(server, &root);
 
         httpd_uri_t connect = {
             .uri = "/connect",
             .method = HTTP_POST,
-            .handler = connect_post_handler};
+            .handler = connect_post_handler,
+            .user_ctx = nullptr};
         httpd_register_uri_handler(server, &connect);
     }
 }

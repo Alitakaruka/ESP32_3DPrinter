@@ -20,6 +20,12 @@ namespace net
         Conn(){};
         Conn(int clientDes) { this->clientDescriptor = clientDes; }
         Conn (const Conn& other): clientDescriptor(other.clientDescriptor){}
+
+        Conn& operator= (const Conn& other){
+            this->clientDescriptor = other.clientDescriptor;
+            return *this;
+        }
+
         bool isValidConnection(){return this->clientDescriptor >= 0;}
         int Write(const void *buffer, int bufferLen = -1);
         int Read(const void *buffer, int bufferLen);

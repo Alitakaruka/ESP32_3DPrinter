@@ -32,12 +32,7 @@ extern "C"{
 
 #include "driver/gpio.h"
 #include "driver/uart.h"
-#include "driver/i2c.h"
 #include "driver/spi_master.h"
-#include "driver/adc.h"
-#include "driver/dac.h"
-#include "driver/timer.h"
-
 #include "driver/i2c_master.h"
 
 #include "esp_wifi.h"
@@ -60,7 +55,7 @@ private:
 public:
     static i2c_master_bus_config_t GetMasterConfig(gpio_num_t scl = GPIO_NUM_21, gpio_num_t sda = GPIO_NUM_22);
     static i2c_device_config_t GetDeviceConfig(uint16_t deviceAdress,
-                                               uint16_t sclSpeed = 100000,
+                                               uint32_t sclSpeed = 100000,
                                                bool disableACK = false,
                                                i2c_addr_bit_len_t addrLen = I2C_ADDR_BIT_LEN_7)
     {
@@ -95,18 +90,18 @@ public:
         esp_netif_init();
         int err;
         err = !esp_event_loop_create_default();
-        if (err != NULL) {
+        if (err != 0) {
             return err;
         }
         esp_netif_create_default_wifi_sta();
         wifi_init_config_t wifiConfig = WIFI_INIT_CONFIG_DEFAULT();
         err = esp_wifi_init(&wifiConfig);
-        if (err != NULL){
-            return err;
+        if (err != 0) {
+            return (int)err;
         }
         esp_wifi_set_mode(WIFI_MODE_STA);
         err = esp_wifi_start();
-        return NULL;
+        return (int)err;
     }
     static bool Connect_Await(const char *SSID, const char *Password){
     wifi_config_t config = {};

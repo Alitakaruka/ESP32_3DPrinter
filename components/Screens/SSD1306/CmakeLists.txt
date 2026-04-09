@@ -1,3 +1,0 @@
-idf_component_register(SRCS "src/ssd1306.cpp"
-                       INCLUDE_DIRS "." "../"
-                       REQUIRES driver esp_wifi nvs_flash)

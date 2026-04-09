@@ -10,13 +10,13 @@ extern "C" {
 #include "nvs_flash.h"
 #include "stdio.h"
 
-#include "driver/timer.h"
+#include "driver/gptimer.h"
 #include "lwip/inet.h"
 #include "lwip/ip4_addr.h"
 }
 
 #include "Configuration.h"
-#include "RingBuffer.hpp"
+#include "ringBuffer.hpp"
 #include "SD_Card.hpp"
 #include "Sprites.h"
 #include "Wifi_Auth.hpp"
@@ -86,6 +86,7 @@ class CNC {
     uint8_t           completion = 0;
     SemaphoreHandle_t RMutex;
     SemaphoreHandle_t WMutex;
+    gptimer_handle_t axis_timer = nullptr;
 
   public:
     CNC();
@@ -104,27 +105,13 @@ class CNC {
     bool        DownloadFile(const char* Command);
     void        SetupGPIOs();
     void        SendCommand(const char* command) {
+        ESP_LOGI("","I send command:%s",command);
         if(!this->Connection.IsClosed()) {
             Connection.Write(command);
             Connection.Write(Commands::EndOfData);
         }
     };
-    void StartTimers() {
-        timer_config_t config = {
-            .alarm_en    = timer_alarm_t::TIMER_ALARM_EN,
-            .counter_en  = timer_start_t::TIMER_PAUSE,
-            .intr_type   = timer_intr_mode_t::TIMER_INTR_LEVEL,
-            .counter_dir = timer_count_dir_t::TIMER_COUNT_UP,
-            .auto_reload = timer_autoreload_t::TIMER_AUTORELOAD_EN,
-            .clk_src     = timer_src_clk_t::TIMER_SRC_CLK_APB,
-            .divider     = 8};
-        timer_init(timer_group_t::TIMER_GROUP_0, timer_idx_t::TIMER_0, &config);
-        timer_set_counter_value(TIMER_GROUP_0, timer_idx_t::TIMER_0, 0);
-        timer_set_alarm_value(TIMER_GROUP_0, TIMER_0, 1000);
-        timer_enable_intr(TIMER_GROUP_0, TIMER_0);
-
-        timer_isr_callback_add(TIMER_GROUP_0, TIMER_0, AxisTimerISR, this, 0);
-    }
+    void StartTimers();
 
   private: // handlers
     static void WifiHandler(void* arg, esp_event_base_t event_base,
@@ -134,6 +121,7 @@ class CNC {
     static void UpdateScreen(void* params);
     static void ReadMemoryToBuffer(void* arg);
     static bool AxisTimerISR(void* arg);
+    static bool GptimerAlarmCb(gptimer_handle_t, const gptimer_alarm_event_data_t*, void* arg);
 
   private: // Commands
     bool ExecuteTask();
@@ -185,6 +173,9 @@ class CNC {
     }
 
     void C_G1(const char* command) {}
+    void Move(const float X,const float Y,const float Z,const float E,const float F){
+
+    }
 };
 
 void StartCNCInTask();

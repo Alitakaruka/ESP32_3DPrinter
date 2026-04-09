@@ -6,22 +6,22 @@ cmake_minimum_required(VERSION 3.5)
 # If CMAKE_DISABLE_SOURCE_CHANGES is set to true and the source directory is an
 # existing directory in our source tree, calling file(MAKE_DIRECTORY) on it
 # would cause a fatal error, even though it would be a no-op.
-if(NOT EXISTS "C:/Users/Huesos/esp/v5.5.1/esp-idf/components/bootloader/subproject")
-  file(MAKE_DIRECTORY "C:/Users/Huesos/esp/v5.5.1/esp-idf/components/bootloader/subproject")
+if(NOT EXISTS "/home/ali/.espressif/v5.5.3/esp-idf/components/bootloader/subproject")
+  file(MAKE_DIRECTORY "/home/ali/.espressif/v5.5.3/esp-idf/components/bootloader/subproject")
 endif()
 file(MAKE_DIRECTORY
-  "C:/Users/Huesos/Desktop/CNC_NEw/build/bootloader"
-  "C:/Users/Huesos/Desktop/CNC_NEw/build/bootloader-prefix"
-  "C:/Users/Huesos/Desktop/CNC_NEw/build/bootloader-prefix/tmp"
-  "C:/Users/Huesos/Desktop/CNC_NEw/build/bootloader-prefix/src/bootloader-stamp"
-  "C:/Users/Huesos/Desktop/CNC_NEw/build/bootloader-prefix/src"
-  "C:/Users/Huesos/Desktop/CNC_NEw/build/bootloader-prefix/src/bootloader-stamp"
+  "/home/ali/Documents/Code/ESP32_3DPrinter/build/bootloader"
+  "/home/ali/Documents/Code/ESP32_3DPrinter/build/bootloader-prefix"
+  "/home/ali/Documents/Code/ESP32_3DPrinter/build/bootloader-prefix/tmp"
+  "/home/ali/Documents/Code/ESP32_3DPrinter/build/bootloader-prefix/src/bootloader-stamp"
+  "/home/ali/Documents/Code/ESP32_3DPrinter/build/bootloader-prefix/src"
+  "/home/ali/Documents/Code/ESP32_3DPrinter/build/bootloader-prefix/src/bootloader-stamp"
 )
 
 set(configSubDirs )
 foreach(subDir IN LISTS configSubDirs)
-    file(MAKE_DIRECTORY "C:/Users/Huesos/Desktop/CNC_NEw/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
+    file(MAKE_DIRECTORY "/home/ali/Documents/Code/ESP32_3DPrinter/build/bootloader-prefix/src/bootloader-stamp/${subDir}")
 endforeach()
 if(cfgdir)
-  file(MAKE_DIRECTORY "C:/Users/Huesos/Desktop/CNC_NEw/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
+  file(MAKE_DIRECTORY "/home/ali/Documents/Code/ESP32_3DPrinter/build/bootloader-prefix/src/bootloader-stamp${cfgdir}") # cfgdir has leading slash
 endif()

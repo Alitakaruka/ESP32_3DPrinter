@@ -12,7 +12,7 @@ CNC::CNC() {
     if(err != ESP_OK) {
         ESP_LOGE("LCD", " display init error!");
     }
-    this->Screen->setRotation(true);
+    this->Screen->setRotation(false);
     showLogo();
 
     SetupGPIOs();
@@ -41,7 +41,7 @@ CNC::CNC() {
 void CNC::Serve() {
     while(1) {
         if(!this->buffio.isEmpty()) {
-            char CurrentCommand[100] = {};
+            char CurrentCommand[512] = {};
             this->buffio.ReadLine(CurrentCommand, sizeof(CurrentCommand), Commands::EndOfData);
             char ch = toupper(CurrentCommand[0]);
             switch(ch) {
@@ -63,15 +63,19 @@ void CNC::Serve() {
 void CNC::ExecuteBase(const char* Command) {
 
     if(!strcmp(Command, Commands::Identification)) {
+        ESP_LOGI("","Identification command!");
         Command_Identification();
     } else if(!strcmp(Command, Commands::SYNC)) {
+        ESP_LOGI("","Sync command!");
         char buf[50] = {};
         sprintf(buf, CNC_Responce::MyBufferLen, BufferSize);
         this->SendCommand(buf);
         memset(&this->buffio, 0, sizeof(this->buffio));
-    } else if(!strstr(Command, Commands::StartOfTransmision)) {
-        DownloadFile(Command);
     }
+    // else if(!strstr(Command, Commands::StartOfTransmision)) {
+    //     ESP_LOGI("","Identification command!");//todo
+    //     DownloadFile(Command);
+    // }
 }
 
 void CNC::ReadMemoryToBuffer(void* arg) {
@@ -278,20 +282,28 @@ void CNC::AcceptConnection(void* params) {
                 con.Close();
                 continue;
             }
-            xTaskCreatePinnedToCore(HandleConnection, "Handler", 2048, self, 2, NULL, 0);
             self->flags |= (1 << FLAG_HasConnection);
+            xTaskCreatePinnedToCore(HandleConnection, "Handler", 2048, self, 2, NULL, 0);
         }
     }
 }
 
 void CNC::HandleConnection(void* params) {
     auto self = static_cast<CNC*>(params);
-    char buffer[100];
+    printf("Pinter HandleConnection:%p",self);
+    char buffer[512];
     ESP_LOGW("Con", "Start listen!");
+
     while(1) {
         memset(buffer, 0, sizeof(buffer));
         int bytes = self->Connection.Read(buffer, sizeof(buffer) - 1);
         if(bytes == 0 || bytes == -1) {
+        // ESP_LOGI("","i read:%s",buffer);
+        if (bytes < 0) {
+            perror("read");
+            printf("errno = %d\n", errno);
+        }
+            ESP_LOGW("Con","Close code %d",bytes);
             ESP_LOGW("Con", "Connection closed!");
             self->flags &= ~(1 << FLAG_HasConnection);
             self->Connection.Close();
@@ -386,6 +398,32 @@ void CNC::SetupGPIOs() {
     };
     gpio_config(&EndstopsConf);
     gpio_config(&SteppersConf);
+}
+
+bool CNC::GptimerAlarmCb(gptimer_handle_t, const gptimer_alarm_event_data_t*, void* arg) {
+    return AxisTimerISR(arg);
+}
+
+void CNC::StartTimers() {
+    gptimer_config_t config = {};
+    config.clk_src       = GPTIMER_CLK_SRC_APB;
+    config.direction     = GPTIMER_COUNT_UP;
+    config.resolution_hz = 10 * 1000 * 1000;  // 10 MHz (was 80MHz/8), 1000 ticks = 100 us
+    config.intr_priority = 0;
+    if(gptimer_new_timer(&config, &axis_timer) != ESP_OK) {
+        return;
+    }
+    gptimer_alarm_config_t alarm = {};
+    alarm.alarm_count  = 1000;
+    alarm.reload_count = 0;
+    alarm.flags.auto_reload_on_alarm = true;
+    gptimer_set_alarm_action(axis_timer, &alarm);
+    gptimer_event_callbacks_t cbs = {
+        .on_alarm = GptimerAlarmCb,
+    };
+    gptimer_register_event_callbacks(axis_timer, &cbs, this);
+    gptimer_enable(axis_timer);
+    gptimer_start(axis_timer);
 }
 
 // Timers

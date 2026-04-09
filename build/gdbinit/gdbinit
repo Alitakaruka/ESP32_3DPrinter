@@ -1,2 +1,2 @@
-source C:/Users/Huesos/Desktop/CNC_NEw/build/gdbinit/symbols
-source C:/Users/Huesos/Desktop/CNC_NEw/build/gdbinit/connect
+source /home/ali/Documents/Code/ESP32_3DPrinter/build/gdbinit/symbols
+source /home/ali/Documents/Code/ESP32_3DPrinter/build/gdbinit/connect
