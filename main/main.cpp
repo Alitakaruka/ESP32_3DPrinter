@@ -51,25 +51,25 @@ extern "C"
 
 
         Init();
-        vTaskDelete(NULL);
+    //     vTaskDelete(NULL);
 
-        gpio_config_t io_conf;
+    //     gpio_config_t io_conf;
 
-        io_conf.pin_bit_mask = (1ULL << STEP_PIN) | (1ULL << DIR_PIN);
-        io_conf.mode = GPIO_MODE_OUTPUT;
+    //     io_conf.pin_bit_mask = (1ULL << STEP_PIN) | (1ULL << DIR_PIN);
+    //     io_conf.mode = GPIO_MODE_OUTPUT;
 
-    gpio_config(&io_conf);
+    // gpio_config(&io_conf);
 
-    while (1)
-    {
-        // вперед
-        step_motor(STEPS, 1);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+    // while (1)
+    // {
+    //     // вперед
+    //     step_motor(STEPS, 1);
+    //     vTaskDelay(pdMS_TO_TICKS(1000));
 
-        // назад
-        step_motor(STEPS, 0);
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    //     // назад
+    //     step_motor(STEPS, 0);
+    //     vTaskDelay(pdMS_TO_TICKS(1000));
+    // }
 
 
 

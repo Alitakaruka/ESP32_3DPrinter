@@ -8,25 +8,28 @@ void CNC::startAndServe(void* params) {
 
 CNC::CNC() {
     this->Screen = new ssd1306();
-    int err      = Screen->Init();
+    this->Events = xEventGroupCreate();
+
+    esp_err_t err      = Screen->Init();
     if(err != ESP_OK) {
         ESP_LOGE("LCD", " display init error!");
     }
-    this->Screen->setRotation(false);
+    this->Screen->setRotation(true);
     showLogo();
-
     SetupGPIOs();
-    StartTimers();
-    this->Events = xEventGroupCreate();
+    xTaskCreatePinnedToCore(UpdateScreen,"Screen update",4000,this,1,NULL,0);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    this->ChargeUI();
+
+
     RMutex       = xSemaphoreCreateMutex();
     WMutex       = xSemaphoreCreateMutex();
     if(RMutex == NULL || WMutex == NULL) {
         ESP_ERROR_CHECK(1);
     }
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    xTaskCreatePinnedToCore(UpdateScreen, "UpdateSkreen", 4000, this, 1, NULL, 0);
 
+    StartTimers();
     initWifi();
     if(sdCard.TryConnectSD() != ESP_OK) {
         ESP_LOGE("SPI", "Error init SPI");
@@ -39,23 +42,47 @@ CNC::CNC() {
 }
 
 void CNC::Serve() {
-    while(1) {
-        if(!this->buffio.isEmpty()) {
-            char CurrentCommand[512] = {};
-            this->buffio.ReadLine(CurrentCommand, sizeof(CurrentCommand), Commands::EndOfData);
-            char ch = toupper(CurrentCommand[0]);
-            switch(ch) {
-            case 'G':
-                ExecuteGCode(CurrentCommand);
-                break;
-            case 'M':
-                ExecuteMCode(CurrentCommand);
-                break;
-            default:
-                ExecuteBase(CurrentCommand);
-                break;
+    if(xPortGetCoreID() == 1) {
+        while(1) {
+            if(!this->buffio.isEmpty()) {
+                char CurrentCommand[512] = {};
+                this->buffio.ReadLine(CurrentCommand, sizeof(CurrentCommand), Commands::EndOfData);
+                char ch = toupper(CurrentCommand[0]);
+                switch(ch) {
+                case 'G':
+                    ExecuteGCode(CurrentCommand);
+                    break;
+                case 'M':
+                    ExecuteMCode(CurrentCommand);
+                    break;
+                default:
+                    ExecuteBase(CurrentCommand);
+                    break;
+                }
+                SendCommand(CNC_Responce::CommandACK);
             }
-            SendCommand(CNC_Responce::CommandACK);
+        }
+    }else{
+        xTaskCreatePinnedToCore(ReadMemoryToBuffer, "", 2048, this, 1, NULL, 0);
+        while(1) {
+            if(!this->buffio.isEmpty()) {
+                char CurrentCommand[512] = {};
+                this->buffio.ReadLine(CurrentCommand, sizeof(CurrentCommand), Commands::EndOfData);
+                char ch = toupper(CurrentCommand[0]);
+                switch(ch) {
+                case 'G':
+                    ExecuteGCode(CurrentCommand);
+                    break;
+                case 'M':
+                    ExecuteMCode(CurrentCommand);
+                    break;
+                default:
+                    ExecuteBase(CurrentCommand);
+                    break;
+                }
+                SendCommand(CNC_Responce::CommandACK);
+            }
+            vTaskDelay(pdMS_TO_TICKS(100));
         }
     }
 }
@@ -201,7 +228,8 @@ void CNC::showLogo() {
 }
 
 void StartCNCInTask() {
-    xTaskCreatePinnedToCore(CNC::startAndServe, "CNC_Mashine", 8192, NULL, 1, NULL, 1);
+    xTaskCreatePinnedToCore(CNC::startAndServe,"", 8192*4, NULL, 1, NULL, 0);
+    // xTaskCreatePinnedToCore(CNC::startAndServe,"", 8192*4, NULL, 1, NULL, 1);
     vTaskDelete(NULL);
 }
 
@@ -258,6 +286,7 @@ void CNC::WifiHandler(void* arg, esp_event_base_t event_base,
             xEventGroupSetBits(self->Events, EVENT_WIFIConneced);
             self->WifiConnectAttempts = 0;
             self->WebServer.StopWebServer();
+            self->ChargeUI();
         }
     }
 }
@@ -319,25 +348,22 @@ void CNC::UpdateScreen(void* param) {
         vTaskDelete(NULL);
         return;
     }
+
     while(1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        xEventGroupWaitBits(self->Events,EVENT_UI_UPDATE,true,false,portMAX_DELAY); //Wait new data
         char buf[24] = {};
-        sprintf(buf, "IP:%s",
-                !strcmp(self->IP, "") ? "No connected!" : (self->IP));
+        sprintf(buf, "IP:%s", !strcmp(self->IP, "") ? "No connected!" : (self->IP));
         char FlagsBuf[24];
         self->Screen->SetPosition(45, 15);
-        sprintf(FlagsBuf, "Work:%s",
-                (self->flags & (1 << FLAG_ExecutingTask)) ? "Yes" : "No");
+        sprintf(FlagsBuf, "Work:%s", (self->flags & (1 << FLAG_ExecutingTask)) ? "Yes" : "No");
         self->Screen->WriteText5x7(FlagsBuf);
 
         self->Screen->SetPosition(45, 25);
-        sprintf(FlagsBuf, "Connected:%s",
-                (self->flags & (1 << FLAG_HasConnection)) ? "Yes" : "No");
+        sprintf(FlagsBuf, "Connected:%s", (self->flags & (1 << FLAG_HasConnection)) ? "Yes" : "No");
         self->Screen->WriteText5x7(FlagsBuf);
 
         self->Screen->SetPosition(45, 35);
-        sprintf(FlagsBuf, "SD Card:%s",
-                (self->flags & (1 << FLAG_SDInit)) ? "Yes" : "No");
+        sprintf(FlagsBuf, "SD Card:%s", (self->flags & (1 << FLAG_SDInit)) ? "Yes" : "No");
         self->Screen->WriteText5x7(FlagsBuf);
 
         self->Screen->DrawRect(0, 0, 127, 10, false);
@@ -400,36 +426,57 @@ void CNC::SetupGPIOs() {
     gpio_config(&SteppersConf);
 }
 
-bool CNC::GptimerAlarmCb(gptimer_handle_t, const gptimer_alarm_event_data_t*, void* arg) {
-    return AxisTimerISR(arg);
-}
-
 void CNC::StartTimers() {
     gptimer_config_t config = {};
-    config.clk_src       = GPTIMER_CLK_SRC_APB;
-    config.direction     = GPTIMER_COUNT_UP;
+    config.clk_src       = soc_periph_gptimer_clk_src_t::GPTIMER_CLK_SRC_APB;
+    config.direction     = gptimer_count_direction_t::GPTIMER_COUNT_UP;
     config.resolution_hz = 10 * 1000 * 1000;  // 10 MHz (was 80MHz/8), 1000 ticks = 100 us
-    config.intr_priority = 0;
-    if(gptimer_new_timer(&config, &axis_timer) != ESP_OK) {
+    config.intr_priority = 2;
+
+    if(gptimer_new_timer(&config, &this->axis_timer) != ESP_OK) {
+        exit(10);
         return;
     }
     gptimer_alarm_config_t alarm = {};
     alarm.alarm_count  = 1000;
     alarm.reload_count = 0;
     alarm.flags.auto_reload_on_alarm = true;
-    gptimer_set_alarm_action(axis_timer, &alarm);
+    gptimer_set_alarm_action(this->axis_timer, &alarm);
+
     gptimer_event_callbacks_t cbs = {
-        .on_alarm = GptimerAlarmCb,
+        .on_alarm = AxisTimerISR,
     };
-    gptimer_register_event_callbacks(axis_timer, &cbs, this);
-    gptimer_enable(axis_timer);
-    gptimer_start(axis_timer);
+
+    gptimer_register_event_callbacks(this->axis_timer, &cbs, this);
+    gptimer_enable(this->axis_timer);
+    // gptimer_start(axis_timer);
+    gptimer_stop(this->axis_timer);
+    gptimer_set_raw_count(this->axis_timer,0);
+
+    //watch dog
+    esp_timer_create_args_t timer_args = {};
+    timer_args.callback = WatchDogTimerHandler;
+    esp_timer_create(&timer_args,&this->wathcDogTimer);
+    esp_timer_start_periodic(this->wathcDogTimer,1000000);
+
+    // //UI Timer
+    // timer_args.callback = UpdateScreen;
+    // timer_args.arg = this;
+    // esp_timer_create(&timer_args,&this->UITimer);
+    // esp_timer_start_periodic(this->UITimer,1000000);
 }
 
 // Timers
 /////////////////////////////////////////////////
-bool CNC::AxisTimerISR(void* arg) {
-    CNC* self = static_cast<CNC*>(arg);
-    // self->Steps;
+bool IRAM_ATTR CNC::AxisTimerISR(
+    gptimer_handle_t timer,
+    const gptimer_alarm_event_data_t *edata,
+    void *arg
+){
+
     return true;
+}
+
+void CNC::WatchDogTimerHandler(void* arg){
+    // esp_rom_printf("Program timer!\n");
 }

@@ -9,6 +9,8 @@ extern "C" {
 #include "include/Commands.h"
 #include "nvs_flash.h"
 #include "stdio.h"
+#include "esp_rom_sys.h"
+#include "esp_timer.h"
 
 #include "driver/gptimer.h"
 #include "lwip/inet.h"
@@ -22,17 +24,19 @@ extern "C" {
 #include "Wifi_Auth.hpp"
 #include "ssd1306.hpp"
 #include "web.hpp"
-
+#include "Sheduler.hpp"
 // #include "esp_vfs_fat.h"
 // #include "driver/sdspi_host.h"c
 // #include "sdmmc_cmd.h"
 
 #define EVENT_WIFIConneced 1
+#define EVENT_UI_UPDATE 4
 
 #define FLAG_HasConnection 0
 #define FLAG_ExecutingTask 1
 #define FLAG_SDInit 2
 #define FLAG_Memory 3
+
 #define FLAG_HasError 4
 
 // #define FLAG_WIFIConnected (1 << 1)
@@ -65,7 +69,9 @@ class CNC {
     Wifi_Auth          WebServer;
     SD_Card            sdCard;
     uint16_t           flags = 0;
-    Buffio<1024>       buffio;
+    Buffio<5096>       buffio;
+
+    Sheduler sheduler;
     struct {
         float X;
         float Y;
@@ -86,7 +92,10 @@ class CNC {
     uint8_t           completion = 0;
     SemaphoreHandle_t RMutex;
     SemaphoreHandle_t WMutex;
+
+
     gptimer_handle_t axis_timer = nullptr;
+    esp_timer_handle_t wathcDogTimer = nullptr;
 
   public:
     CNC();
@@ -95,6 +104,11 @@ class CNC {
     void ExecuteGCode(const char* Command);
     void ExecuteMCode(const char* Command);
     void ExecuteBase(const char* Command);
+
+    void ChargeUI(){
+        xEventGroupSetBits(this->Events,EVENT_UI_UPDATE);
+    }
+
 
     static void startAndServe(void* params);
 
@@ -120,8 +134,8 @@ class CNC {
     static void HandleConnection(void* params);
     static void UpdateScreen(void* params);
     static void ReadMemoryToBuffer(void* arg);
-    static bool AxisTimerISR(void* arg);
-    static bool GptimerAlarmCb(gptimer_handle_t, const gptimer_alarm_event_data_t*, void* arg);
+    static bool IRAM_ATTR AxisTimerISR(gptimer_handle_t timer, const gptimer_alarm_event_data_t*, void* arg);
+    static void  WatchDogTimerHandler(void* arg);
 
   private: // Commands
     bool ExecuteTask();
