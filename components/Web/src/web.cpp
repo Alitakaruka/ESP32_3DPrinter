@@ -18,7 +18,4 @@ void net::Conn::Close(){
     }
 }
 
-bool net::Conn::IsClosed(){
-    return this->clientDescriptor < 0;
-}
-
+bool net::Conn::IsClosed() { return this->clientDescriptor < 0; }

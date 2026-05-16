@@ -9,15 +9,18 @@ const char MyName[]           = "M_Name:%s";
 const char MyType[]           = "M_Type:%d";
 
 const char MyPositionXYZ[] = "X:%.2f\r\nY:%.2f\r\nZ:%.2f";
+const char MyPositionX[] = "X:%.2f";
+const char MyPositionY[] = "Y:%.2f";
+const char MyPositionZ[] = "Z:%.2f";
 
 const char Flags[]       = "";
-const char Error[]       = "Error:%s";
 const char MyWidth[]     = "M_Width:%d";
 const char MyLength[]    = "M_Length:%d";
 const char MyHeight[]    = "M_Height:%d";
 const char MyBufferLen[] = "M_Buff_Len:%d";
 
 const char CommandACK[] = "ok";
+const char Switch_Timeout_C[] = "Switch_Timeout:%d";
 } // namespace CNC_Responce
 
 namespace Commands {
@@ -38,29 +41,61 @@ const char GET_FILE_FATA[]      = "GET_FILE_FATA:%d";
 
 const char SYNC[] = "SYNC";
 
+const char StartTask[] = "StartTask";
+const char EndTask[] = "EndTask";
+const char SetCompletion[] = "Completion:%d";
+
 } // namespace Commands
 
 namespace GCode {
-const char G0[]  = "G0";  // Fast move
-const char G1[]  = "G1";  // move
-const char G4[]  = "G4";  // sleep
-const char G10[] = "G10"; // retract
-const char G11[] = "G11"; // unretract
-const char G28[] = "G28"; // Home position
-const char G90[] = "G90"; // set absolute coord
-const char G91[] = "G91";
-const char G92[] = "G92"; // Set position
-const char G20[] = "G20";
-const char G21[] = "G21";
-const char G29[] = "G29";
+const uint16_t G0  = 0;  // move
+const uint16_t G1  = 1;  // move
+
+const uint16_t G4  = 4;  // sleep
+const uint16_t G10  = 10;  // retract
+const uint16_t G11  = 11;  // unretract
+const uint16_t G28  = 28;  // Home position
+const uint16_t G90  = 90;  // Set ot coord
+const uint16_t G91  = 91;  // set absolute coord
+const uint16_t G92  = 92;  // Set position
+const uint16_t G20  = 20;  // sleep
+const uint16_t G21  = 21;  // sleep
+const uint16_t G29  = 29;  // sleep
 } // namespace GCode
 
 namespace MCode {
 
+const uint16_t M82 = 82;
+const uint16_t M83 = 83;
+
+const uint16_t M92 = 92;
+
+const uint16_t M140 = 140;
+const uint16_t M190 = 190;
+const uint16_t M221 = 221; // flow
+const uint16_t M220 = 220;
+const uint16_t M73 =  73;
+///////////////////////////////////////////////////// Unsuported
+
+const uint16_t M900 = 900; // linear advance
+const uint16_t M486 = 48;
+const uint16_t M201 = 201; // todo
+const uint16_t M203 = 203; // todo
+const uint16_t M204 = 204;
+const uint16_t M205 = 205;
+const uint16_t GetPosition = 114;
+const uint16_t GetVersion = 115;
+const uint16_t EnableStepscommand = 17;
+const uint16_t DisableStepscommand = 18;
+
+const uint16_t TurnOnFan = 106;
+const uint16_t TurnOfFan = 107;
+
 #if MACHINE_TYPE == THREE_D_PRINTER
 const char GetTemps[] = "M105";
 #endif
-const char GetState[] = "M114";
+const char     M67_f[]  = "M67 E%d Q%f";
+const uint16_t M67      = 67;
 
 const char FileList[]     = "M20"; // Показать список файлов на SD-карте
 const char SDInit[]       = "M21"; // Инициализировать SD-карту
@@ -82,30 +117,31 @@ const char M110[] = "M110"; // Сбросить номер слоя/линии (
 
 const char M119[] = "M119"; // Прочитать состояние концевиков (endstops)
 
-const char M200[] = "M200"; // Установить диаметр филамента
-const char M201[] = "M201"; // Установить ускорение осей
-const char M202[] = "M202"; // Установить максимальное ускорение осей
-const char M203[] = "M203"; // Установить максимальную скорость осей
-const char M204[] = "M204"; // Установить ускорения печати/переездов
-const char M205[] = "M205"; // Установить параметры движения (jerk и др.)
-const char M206[] = "M206"; // Установить offset домашней точки (home offset)
-const char M207[] = "M207"; // Ретракт (параметры втягивания)
-const char M208[] = "M208"; // Установить параметры антиретрака
-const char M209[] = "M209"; // Автоматический ретракт вкл/выкл (auto retract)
+// const char M200[] = "M200"; // Установить диаметр филамента
+// const char M201[] = "M201"; // Установить ускорение осей
+// const char M202[] = "M202"; // Установить максимальное ускорение осей
+// const char M203[] = "M203"; // Установить максимальную скорость осей
+// const char M204[] = "M204"; // Установить ускорения печати/переездов
+// const char M205[] = "M205"; // Установить параметры движения (jerk и др.)
+// const char M206[] = "M206"; // Установить offset домашней точки (home offset)
+// const char M207[] = "M207"; // Ретракт (параметры втягивания)
+// const char M208[] = "M208"; // Установить параметры антиретрака
+// const char M209[] = "M209"; // Автоматический ретракт вкл/выкл (auto retract)
 
-const char M218[] = "M218"; // Offset для второго экструдера/головок
+// const char M218[] = "M218"; // Offset для второго экструдера/головок
 
-const char M221[] = "M221"; // Изменить flow (процент подачи материала)
+// const char M221[] = "M221"; // Изменить flow (процент подачи материала)
 
-const char M301[] = "M301"; // PID-настройка нагревателя хотэнда
-const char M303[] = "M303"; // Авто-PID тюнинг нагревателя (PID autotune)
+// const char M301[] = "M301"; // PID-настройка нагревателя хотэнда
+// const char M303[] = "M303"; // Авто-PID тюнинг нагревателя (PID autotune)
 
-const char M404[] = "M404"; // Диаметр филамента (параметр для расчётов)
+// const char M404[] = "M404"; // Диаметр филамента (параметр для расчётов)
 
-const char M420[] = "M420"; // Управление ABL сеткой (включение/выкл/загрузка)
+// const char M420[] = "M420"; // Управление ABL сеткой (включение/выкл/загрузка)
 
-const char M500[] = "M500"; // Сохранить настройки в EEPROM
-const char M501[] = "M501"; // Загрузить настройки из EEPROM
+// const char M500[] = "M500"; // Сохранить настройки в EEPROM
+// const char M501[] = "M501"; // Загрузить настройки из EEPROM
 
-const char M600[] = "M600"; // Замена филамента (pause & change filament)
+// const char M600[] = "M600"; // Замена филамента (pause & change filament)
 } // namespace MCode
+#pragma once

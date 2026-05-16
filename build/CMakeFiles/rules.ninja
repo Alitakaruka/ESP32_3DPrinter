@@ -2182,6 +2182,25 @@ rule C_STATIC_LIBRARY_LINKER____idf_SSD1306_
 #############################################
 # Rule for compiling CXX files.
 
+rule CXX_COMPILER____idf_TransmitBuffer_unscanned_
+  depfile = $DEP_FILE
+  deps = gcc
+  command = ${LAUNCHER}${CODE_CHECK}/home/ali/.espressif/tools/xtensa-esp-elf/esp-15.2.0_20251204/xtensa-esp-elf/bin/xtensa-esp32-elf-g++ $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
+  description = Building CXX object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_TransmitBuffer_
+  command = $PRE_LINK && /home/ali/.espressif/tools/cmake/4.0.3/bin/cmake -E rm -f $TARGET_FILE && /home/ali/.espressif/tools/xtensa-esp-elf/esp-15.2.0_20251204/xtensa-esp-elf/bin/xtensa-esp32-elf-ar qc $TARGET_FILE $LINK_FLAGS $in && /home/ali/.espressif/tools/xtensa-esp-elf/esp-15.2.0_20251204/xtensa-esp-elf/bin/xtensa-esp32-elf-ranlib $TARGET_FILE && $POST_BUILD
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling CXX files.
+
 rule CXX_COMPILER____idf_Web_unscanned_
   depfile = $DEP_FILE
   deps = gcc

@@ -1,6 +1,10 @@
 #include "algorithm"
 #include "cstring"
 #include "stdio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_log.h"
+
 
 template <typename T>
 class RingBuffer {
@@ -60,12 +64,19 @@ class Buffio {
     size_t        readPos  = 0;
     size_t        writePos = 0;
 
+    SemaphoreHandle_t hasData;
   public:
-    Buffio() = default;
+    Buffio(){
+        this->hasData = xSemaphoreCreateBinary();
+    };
 
     bool isEmpty() const { return readPos == writePos; }
     bool isFull() const { return ((writePos + 1) % N) == readPos; }
-
+    void clear(){
+        memset(this->data,0,sizeof(data));
+        this->readPos = 0;
+        this->writePos = 0;
+    }
     size_t available() const {
         if(writePos >= readPos)
             return writePos - readPos;
@@ -76,13 +87,14 @@ class Buffio {
     size_t freeSpace() const { return N - available() - 1; }
 
     int WriteNext(const uint8_t* buffer, int len) {
-        if(len > (int)freeSpace())
+        if(len > (int)freeSpace()){
             return -1;
-
+        }
         for(int i = 0; i < len; i++) {
             data[writePos] = buffer[i];
             writePos       = (writePos + 1) % N;
         }
+        xSemaphoreGive(this->hasData);
         return len;
     }
 
@@ -106,7 +118,11 @@ class Buffio {
 
     int ReadLine(uint8_t* buffer, int maxLen, uint8_t delim) {
         int count = 0;
+
         while(!isEmpty() && maxLen > 0) {
+            if(isEmpty()) {
+                xSemaphoreTake(this->hasData,portMAX_DELAY);
+            }
             uint8_t c = data[readPos];
             readPos   = (readPos + 1) % N;
             if(c == delim)
@@ -126,7 +142,7 @@ class Buffio {
         size_t delimLen = strlen(delim);
         while(maxLen) {
             if(isEmpty()) {
-                continue;
+                xSemaphoreTake(this->hasData,portMAX_DELAY);
             }
             buffer[count] = data[readPos];
             readPos       = (readPos + 1) % N;

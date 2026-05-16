@@ -4,27 +4,21 @@
 #define TARGET_MACHINE_NAME "Huesosik"
 #define MACHINE_TYPE LASER
 
-#define BufferSize 1024
+#define BufferSize 5096
 
-#define Width 50  // X
-#define Length 50 // Y
+#define Width 150  // X
+#define Length 150 // Y
 #define Heigh 0   // Z
 
 #define Switch_Timeout 1
 
-#define StepEnablePort 11
 
-#define FDM_PRINTER 1
-#define LASER 2
-#define SLA_PRINTER 3
-#define SLS_PRINTER 4
-#define MILLING 5
 
 #pragma region Ports
-#define STEPPERS_ENABLE_PORT 21
+#define STEPPERS_ENABLE_PORT GPIO_NUM_21
 
-#define X_DIR_PORT 13
-#define X_STEP_PORT 15
+#define X_DIR_PORT GPIO_NUM_13
+#define X_STEP_PORT GPIO_NUM_15
 
 #define Y_DIR_PORT 14
 #define Y_STEP_PORT 27
@@ -52,6 +46,19 @@
 
 #pragma endregion
 
-#if defined(MACHINE_TYPE) && (MACHINE_TYPE + 0 == 0)
+#pragma region machineTypes
+
+ #define FDM_PRINTER 1
+#define LASER 2
+#define SLA_PRINTER 3
+#define SLS_PRINTER 4
+#define MILLING 5
+
+#pragma endregion
+
+
+#define TransmitDataTimeout_S 2
+
+#if defined(MACHINE_TYPE) && (MACHINE_TYPE + 0 <= 0)
 #error MACHINE_TYPE not initialized
 #endif

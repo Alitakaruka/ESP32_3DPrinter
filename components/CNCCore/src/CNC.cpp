@@ -1,15 +1,16 @@
 #include "CNC.hpp"
 
-void CNC::startAndServe(void* params) {
-    CNC mashine;
+void StartCNCInTask() {
     ESP_LOGI("Init", "Start init mashine!\n");
-    mashine.Serve();
+    CNC* machine = new CNC();
+    xTaskCreatePinnedToCore(CNC::ExecuteCommands, "Executor", 4096, machine, 0, NULL, 1);
+    xTaskCreatePinnedToCore(CNC::ReadCommands,"Reader",4096,machine,0,NULL,1);
+    vTaskDelete(NULL);
 }
 
 CNC::CNC() {
     this->Screen = new ssd1306();
     this->Events = xEventGroupCreate();
-
     esp_err_t err      = Screen->Init();
     if(err != ESP_OK) {
         ESP_LOGE("LCD", " display init error!");
@@ -22,11 +23,11 @@ CNC::CNC() {
     this->ChargeUI();
 
 
-    RMutex       = xSemaphoreCreateMutex();
-    WMutex       = xSemaphoreCreateMutex();
-    if(RMutex == NULL || WMutex == NULL) {
-        ESP_ERROR_CHECK(1);
-    }
+    // RMutex       = xSemaphoreCreateMutex();
+    // WMutex       = xSemaphoreCreateMutex();
+    // if(RMutex == NULL || WMutex == NULL) {
+    //     ESP_ERROR_CHECK(1);
+    // }
 
 
     StartTimers();
@@ -34,140 +35,65 @@ CNC::CNC() {
     if(sdCard.TryConnectSD() != ESP_OK) {
         ESP_LOGE("SPI", "Error init SPI");
     } else {
-        this->flags |= (1 << FLAG_SDInit);
+        this->flags |= FLAG_SDInit;
     }
     EventBits_t bits = xEventGroupWaitBits(this->Events, EVENT_WIFIConneced, true, false, portMAX_DELAY);
     // accept tcpConnections
     xTaskCreatePinnedToCore(AcceptConnection, "ConnectionAccept", 2048, this, 1, NULL, 0);
 }
 
-void CNC::Serve() {
-    if(xPortGetCoreID() == 1) {
-        while(1) {
-            if(!this->buffio.isEmpty()) {
-                char CurrentCommand[512] = {};
-                this->buffio.ReadLine(CurrentCommand, sizeof(CurrentCommand), Commands::EndOfData);
-                char ch = toupper(CurrentCommand[0]);
-                switch(ch) {
-                case 'G':
-                    ExecuteGCode(CurrentCommand);
-                    break;
-                case 'M':
-                    ExecuteMCode(CurrentCommand);
-                    break;
-                default:
-                    ExecuteBase(CurrentCommand);
-                    break;
-                }
-                SendCommand(CNC_Responce::CommandACK);
-            }
+void CNC::ReadCommands(void* args) {
+    CNC* self = static_cast<CNC*>(args);
+    while(1) {
+        char CurrentCommand[512] = {};
+        self->buffio.ReadLine(CurrentCommand, sizeof(CurrentCommand), Commands::EndOfData);
+        char ch = toupper(CurrentCommand[0]);
+        switch(ch) {
+        case 'G':
+            self->ReadGCode(CurrentCommand);
+            break;
+        case 'M':
+            self->ReadMCode(CurrentCommand);
+            break;
+        default:
+            self->ExecuteBase(CurrentCommand);
+            break;
         }
-    }else{
-        xTaskCreatePinnedToCore(ReadMemoryToBuffer, "", 2048, this, 1, NULL, 0);
-        while(1) {
-            if(!this->buffio.isEmpty()) {
-                char CurrentCommand[512] = {};
-                this->buffio.ReadLine(CurrentCommand, sizeof(CurrentCommand), Commands::EndOfData);
-                char ch = toupper(CurrentCommand[0]);
-                switch(ch) {
-                case 'G':
-                    ExecuteGCode(CurrentCommand);
-                    break;
-                case 'M':
-                    ExecuteMCode(CurrentCommand);
-                    break;
-                default:
-                    ExecuteBase(CurrentCommand);
-                    break;
-                }
-                SendCommand(CNC_Responce::CommandACK);
-            }
-            vTaskDelay(pdMS_TO_TICKS(100));
-        }
+        self->WriteCommandToBuffer(CNC_Responce::CommandACK);
+        self->SendBuffer();
+    }
+}
+
+void CNC::ExecuteCommands(void* args){
+    CNC* self = static_cast<CNC*>(args);
+    while(1){
+        Motion m = self->sheduler.Get();
+        ESP_LOGW(pcTaskGetName(NULL),"MOOOOOOVE");
+
     }
 }
 
 void CNC::ExecuteBase(const char* Command) {
-
     if(!strcmp(Command, Commands::Identification)) {
-        ESP_LOGI("","Identification command!");
         Command_Identification();
     } else if(!strcmp(Command, Commands::SYNC)) {
-        ESP_LOGI("","Sync command!");
-        char buf[50] = {};
-        sprintf(buf, CNC_Responce::MyBufferLen, BufferSize);
-        this->SendCommand(buf);
-        memset(&this->buffio, 0, sizeof(this->buffio));
-    }
-    // else if(!strstr(Command, Commands::StartOfTransmision)) {
-    //     ESP_LOGI("","Identification command!");//todo
-    //     DownloadFile(Command);
-    // }
-}
-
-void CNC::ReadMemoryToBuffer(void* arg) {
-    while(1) {
-        vTaskDelay(1000);
-    }
-    vTaskDelete(NULL);
-}
-
-void CNC::ExecuteGCode(const char* Command) {
-    {
-        using namespace GCode;
-
-        if(strncmp(Command, G0, strlen(G0))) {
-            //
-        } else if(strncmp(Command, G1, strlen(G1))) {
-
-        } else if(strncmp(Command, G4, strlen(G4))) {
-            char sleepTime[10];
-            Command += strlen(G4);
-            strncpy(sleepTime, Command, sizeof(sleepTime) - 1);
-            vTaskDelay(pdMS_TO_TICKS(atoi(sleepTime)));
-        } else if(strncmp(Command, G10, strlen(G10))) {
-
-        } else if(strncmp(Command, G11, strlen(G11))) {
-
-        } else if(strncmp(Command, G28, strlen(G28))) {
-
-        } else if(strncmp(Command, G90, strlen(G90))) {
-
-        } else if(strncmp(Command, G91, strlen(G91))) {
-
-        } else if(strncmp(Command, G92, strlen(G92))) {
-
-        } else if(strncmp(Command, G20, strlen(G20))) {
-
-        } else if(strncmp(Command, G21, strlen(G21))) {
-
-        } else if(strncmp(Command, G29, strlen(G29))) {
-            ////////////////////////////////////////////
-        } else if(strncmp(Command, G1, strlen(G0))) {
-
-        } else if(strncmp(Command, G1, strlen(G0))) {
-
-        } else if(strncmp(Command, G1, strlen(G0))) {
-
-        } else if(strncmp(Command, G1, strlen(G0))) {
+        this->WriteCommandToBuffer(CNC_Responce::MyBufferLen, BufferSize);
+        this->buffio.clear();
+    } else if(strcasestr(Command, Commands::SetCompletion) != NULL) {
+        int completion = 0;
+        if(sscanf(Command, Commands::SetCompletion, &completion)) {
+            if(completion > 100) { completion = 100; }
+            if(completion < 0) { completion = 0; }
+            this->completion = static_cast<uint8_t>(completion);
+            this->ChargeUI();
         }
-    }
-}
+    } else if(!strcmp(Command, Commands::StartTask)) {
+        this->flags.fetch_or(FLAG_ExecutingTask);
+        this->ChargeUI();
+    } else if(!strcmp(Command, Commands::EndTask)) {
 
-void CNC::ExecuteMCode(const char* Command) {
-    {
-
-        using namespace MCode;
-        if(!strcmp(Command, StartTask)) {
-            this->flags |= (1 << FLAG_ExecutingTask);
-            xTaskCreatePinnedToCore(ReadMemoryToBuffer, "", 2048, this, 1, NULL, 0);
-        } else if(!strcmp(Command, GetState)) {
-            Command_GetState();
-        } else if(!strcmp(Command, SelectFile)) {
-            char filename[20] = {};
-            strncpy(filename, Command + sizeof(SelectFile), 19);
-            this->sdCard.SelectFile(Command);
-        }
+        this->flags.fetch_and(~FLAG_ExecutingTask);
+        this->ChargeUI();
     }
 }
 
@@ -227,11 +153,6 @@ void CNC::showLogo() {
     this->Screen->SwapBuffers();
 }
 
-void StartCNCInTask() {
-    xTaskCreatePinnedToCore(CNC::startAndServe,"", 8192*4, NULL, 1, NULL, 0);
-    // xTaskCreatePinnedToCore(CNC::startAndServe,"", 8192*4, NULL, 1, NULL, 1);
-    vTaskDelete(NULL);
-}
 
 void CNC::initWifi() {
     esp_err_t ret = nvs_flash_init();
@@ -269,19 +190,21 @@ void CNC::WifiHandler(void* arg, esp_event_base_t event_base,
     CNC* self = static_cast<CNC*>(arg);
 
     if(event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        ESP_LOGI(TAG, "Disconnected. Reconnecting...");
+
+        ESP_LOGI("WIFI", "Disconnected. Reconnecting...");
         self->WifiConnectAttempts++;
         xEventGroupClearBits(self->Events, EVENT_WIFIConneced);
         if(self->WifiConnectAttempts >= 10) {
-            ESP_LOGW(TAG, "WIFI cant connected! Start auth web server!");
+            ESP_LOGW("WIFI", "cant connected! Start auth web server!");
             memset(self->IP, 0, sizeof(self->IP));
             self->WebServer.StartWebServer("CNC Setup", "");
         } else {
             esp_wifi_connect();
         }
+        self->ChargeUI();
     } else if(event_base == IP_EVENT) {
         if(event_id == IP_EVENT_STA_GOT_IP) {
-            ESP_LOGW(TAG, "Wifi connected!");
+            ESP_LOGW("WIFI", "connected!");
             self->getIP();
             xEventGroupSetBits(self->Events, EVENT_WIFIConneced);
             self->WifiConnectAttempts = 0;
@@ -306,36 +229,37 @@ void CNC::AcceptConnection(void* params) {
         net::Conn con = listener.AcceptConn();
         if(con.isValidConnection()) {
             self->Connection = con;
-            if(self->flags & (1 << FLAG_HasConnection)) {
+            if(self->flags.load() &  FLAG_HasConnection) {
                 ESP_LOGE("Connection", "FLAG_HasConnection is SET!");
                 con.Close();
                 continue;
             }
-            self->flags |= (1 << FLAG_HasConnection);
-            xTaskCreatePinnedToCore(HandleConnection, "Handler", 2048, self, 2, NULL, 0);
+            self->flags.fetch_or(FLAG_HasConnection);
+            self->ChargeUI();//new connection
+            xTaskCreatePinnedToCore(HandleConnection, "Handler", 2048*2, self, 2, NULL, 0);
         }
     }
 }
 
 void CNC::HandleConnection(void* params) {
     auto self = static_cast<CNC*>(params);
-    printf("Pinter HandleConnection:%p",self);
     char buffer[512];
-    ESP_LOGW("Con", "Start listen!");
+    ESP_LOGW("Connection", "Start listen!");
 
     while(1) {
         memset(buffer, 0, sizeof(buffer));
         int bytes = self->Connection.Read(buffer, sizeof(buffer) - 1);
         if(bytes == 0 || bytes == -1) {
-        // ESP_LOGI("","i read:%s",buffer);
-        if (bytes < 0) {
-            perror("read");
-            printf("errno = %d\n", errno);
-        }
-            ESP_LOGW("Con","Close code %d",bytes);
+            // ESP_LOGI("","i read:%s",buffer);
+            if(bytes < 0) {
+                perror("read");
+                printf("errno = %d\n", errno);
+            }
+            ESP_LOGW("Con", "Close code %d", bytes);
             ESP_LOGW("Con", "Connection closed!");
-            self->flags &= ~(1 << FLAG_HasConnection);
+            self->flags.fetch_and(~FLAG_HasConnection);
             self->Connection.Close();
+            self->ChargeUI();
             vTaskDelete(NULL);
         }
         self->buffio.WriteNext(buffer, bytes);
@@ -355,15 +279,15 @@ void CNC::UpdateScreen(void* param) {
         sprintf(buf, "IP:%s", !strcmp(self->IP, "") ? "No connected!" : (self->IP));
         char FlagsBuf[24];
         self->Screen->SetPosition(45, 15);
-        sprintf(FlagsBuf, "Work:%s", (self->flags & (1 << FLAG_ExecutingTask)) ? "Yes" : "No");
+        sprintf(FlagsBuf, "Work:%s", (self->flags.load() & FLAG_ExecutingTask) ? "Yes" : "No");
         self->Screen->WriteText5x7(FlagsBuf);
 
         self->Screen->SetPosition(45, 25);
-        sprintf(FlagsBuf, "Connected:%s", (self->flags & (1 << FLAG_HasConnection)) ? "Yes" : "No");
+        sprintf(FlagsBuf, "Connected:%s", (self->flags.load() & FLAG_HasConnection) ? "Yes" : "No");
         self->Screen->WriteText5x7(FlagsBuf);
 
         self->Screen->SetPosition(45, 35);
-        sprintf(FlagsBuf, "SD Card:%s", (self->flags & (1 << FLAG_SDInit)) ? "Yes" : "No");
+        sprintf(FlagsBuf, "SD Card:%s", (self->flags.load() &  FLAG_SDInit) ? "Yes" : "No");
         self->Screen->WriteText5x7(FlagsBuf);
 
         self->Screen->DrawRect(0, 0, 127, 10, false);
@@ -373,15 +297,15 @@ void CNC::UpdateScreen(void* param) {
         char PosBuf[32] = {};
 
         self->Screen->SetPosition(2, 15);
-        snprintf(PosBuf, sizeof(PosBuf), "X:%.2f", self->Position.X);
+        snprintf(PosBuf, sizeof(PosBuf), "X:%.2f", self->CurrentPosition.X);
         self->Screen->WriteText5x7(PosBuf);
 
         self->Screen->SetPosition(2, 25);
-        snprintf(PosBuf, sizeof(PosBuf), "Y:%.2f", self->Position.Y);
+        snprintf(PosBuf, sizeof(PosBuf), "Y:%.2f", self->CurrentPosition.Y);
         self->Screen->WriteText5x7(PosBuf);
 
         self->Screen->SetPosition(2, 35);
-        snprintf(PosBuf, sizeof(PosBuf), "Z:%.2f", self->Position.Z);
+        snprintf(PosBuf, sizeof(PosBuf), "Z:%.2f", self->CurrentPosition.Z);
         self->Screen->WriteText5x7(PosBuf);
 
         self->Screen->DrawLine(40, 10, 40, 50);
@@ -455,9 +379,10 @@ void CNC::StartTimers() {
 
     //watch dog
     esp_timer_create_args_t timer_args = {};
+    timer_args.arg  = this;
     timer_args.callback = WatchDogTimerHandler;
     esp_timer_create(&timer_args,&this->wathcDogTimer);
-    esp_timer_start_periodic(this->wathcDogTimer,1000000);
+    esp_timer_start_periodic(this->wathcDogTimer,WDTimerUs);//100 MS || 10hz
 
     // //UI Timer
     // timer_args.callback = UpdateScreen;
@@ -478,5 +403,41 @@ bool IRAM_ATTR CNC::AxisTimerISR(
 }
 
 void CNC::WatchDogTimerHandler(void* arg){
-    // esp_rom_printf("Program timer!\n");
+    // CNC* Self = static_cast<CNC*>(arg);
+    // static uint8_t counter = 0;
+    // static uint16_t SendTimeout = 0;
+    // switch (counter) {
+    // case 0:
+    //     Self->WriteCommandToBuffer(CNC_Responce::MyPositionX, Self->CurrentPosition.X);
+    //     break;
+    // case 1:
+    //     Self->WriteCommandToBuffer(CNC_Responce::MyPositionY, Self->CurrentPosition.X);
+    //     break;
+    // case 2:
+    //     Self->WriteCommandToBuffer(CNC_Responce::MyPositionZ, Self->CurrentPosition.X);
+    //     break;
+    // // case 3:
+    // //     Self->WriteCommandToBuffer(BedTemp, iPrinter.tempBed,
+    // //                       iPrinter.BedPID.needValue);
+    // //     break;
+    // // case 4:
+    // //     Self->WriteCommandToBuffer(ExtruderTemp, iPrinter.tempNozzle,
+    // //                       iPrinter.NozzlePID.needValue);
+    // //     break;
+    // // case 5:
+    // //     Self->WriteCommandToBuffer(FanSpeed, 1, iPrinter.fan1);
+    // //     break;
+    // // case 6:
+    // //     Self->WriteCommandToBuffer(FanSpeed, 2, iPrinter.fan2);
+    // //     break;
+    // // default:
+    // //     break;
+    // }
+    // counter = (counter + 1) % 7;
+    // SendTimeout++;
+    // if(SendTimeout / WDTicksInSecond >= TransmitDataTimeout_S){
+    //     Self->SendBuffer();
+    //     SendTimeout =0;
+    // }
+
 }

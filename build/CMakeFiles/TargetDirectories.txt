@@ -1088,6 +1088,13 @@
 /home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/SSD1306/CMakeFiles/install.dir
 /home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/SSD1306/CMakeFiles/install/local.dir
 /home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/SSD1306/CMakeFiles/install/strip.dir
+/home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/TransmitBuffer/CMakeFiles/__idf_TransmitBuffer.dir
+/home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/TransmitBuffer/CMakeFiles/edit_cache.dir
+/home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/TransmitBuffer/CMakeFiles/rebuild_cache.dir
+/home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/TransmitBuffer/CMakeFiles/list_install_components.dir
+/home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/TransmitBuffer/CMakeFiles/install.dir
+/home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/TransmitBuffer/CMakeFiles/install/local.dir
+/home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/TransmitBuffer/CMakeFiles/install/strip.dir
 /home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/Web/CMakeFiles/__idf_Web.dir
 /home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/Web/CMakeFiles/edit_cache.dir
 /home/ali/Documents/Code/ESP32_3DPrinter/build/esp-idf/Web/CMakeFiles/rebuild_cache.dir

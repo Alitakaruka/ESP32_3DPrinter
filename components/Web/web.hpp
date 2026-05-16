@@ -8,6 +8,7 @@
 #include "esp_netif_ip_addr.h" // ip4addr_ntoa
 #include "esp_netif_types.h"
 #include "esp_netif.h"
+#include "stdarg.h"
 
 namespace net
 {
@@ -15,7 +16,6 @@ namespace net
     {
     private:
         int clientDescriptor = -1;
-
     public:
         Conn(){};
         Conn(int clientDes) { this->clientDescriptor = clientDes; }

@@ -226,7 +226,7 @@ void ssd1306::DrawLine(int X0, int Y0, int X1, int Y1) {
     int err = dx - dY;
 
     while(true) {
-        SetPixel(X0, Y0, 1); // твоя функция вывода пикселя
+        SetPixel(X0, Y0, 1);
 
         if(X0 == X1 && Y0 == Y1)
             break;
